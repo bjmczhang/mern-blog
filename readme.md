@@ -30,8 +30,6 @@
 
 https://expressjs.com/en/starter/installing.html
 
-
-
 # 2. Setting up
 
 ## 2.1 Create Project Folders
@@ -210,8 +208,6 @@ async function main() {
 
 ![](C:\Users\ben\AppData\Roaming\marktext\images\2025-04-23-11-10-21-image.png)
 
-
-
 # 3. Create Models
 
 https://mongoosejs.com/docs/
@@ -263,8 +259,6 @@ module.exports = Blog;
 > 
 > 这样，MongoDB 中对应的集合名就会是 `blog2`，不会被 Mongoose 自动变形。
 
-
-
 # 4. express.Router
 
 Use the `express.Router` class to create modular, mountable route handlers. A `Router` instance is a complete middleware and routing system; for this reason, it is often referred to as a “mini-app”.
@@ -298,8 +292,6 @@ app.use("/api/blogs", blogRoute);
 > ```js
 > const router = express.Router({ mergeParams: true })
 > ```
-
-
 
 # 5. CRUD
 
@@ -436,4 +428,200 @@ router.get("/:id", async (req, res) => {
 
 ## 5.7 Update A Blog Post
 
+```js
+router.patch("/update-post/:id", async (req, res) => {
+  try {
+    // console.log(req.params.id);
+    const postId = req.params.id;
+    const updatedPost = await Blog.findByIdAndUpdate(
+      postId,
+      { ...req.body },
+      { new: true }
+    );
+
+    if (!updatedPost) {
+      return res.status(404).send({ message: "Blog post not found" });
+    }
+    res.status(200).send({
+      message: "Blog post updated successfully",
+      post: updatedPost,
+    });
+  } catch (error) {
+    console.error("Error updating blog post:", error);
+    res.status(500).send({ message: "Error updating blog post" });
+  }
+});
+```
+
+## 5.8 Delete A Blog Post
+
+```js
+router.delete("/delete-post/:id", async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const deletedPost = await Blog.findByIdAndDelete(postId);
+    if (!deletedPost) {
+      return res.status(404).send({ message: "Blog post not found" });
+    }
+    res.status(200).send({
+      message: "Blog post deleted successfully",
+      post: deletedPost,
+    });
+  } catch (error) {
+    console.error("Error deleting blog post:", error);
+    res.status(500).send({ message: "Error deleting blog post" });
+  }
+});
+```
+
+## 5.9 Find Related Blogs
+
+```js
+router.get("/related/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).send({ message: "Blog ID is required" });
+    }
+    const post = await Blog.findById(id);
+
+    if (!post) {
+      return res.status(404).send({ message: "Blog post not found" });
+    }
+    const titleRegex = new RegExp(post.title.split(" ").join("|"), "i");
+
+    const relatedQuery = {
+      _id: { $ne: id }, // Exclude the current blog post
+      title: { $regex: titleRegex }, // Match similar titles
+    };
+
+    const relatedPosts = await Blog.find(relatedQuery).limit(5); // Limit to 5 related posts
+
+    res.status(200).send({
+      message: "Related blogs retrieved successfully",
+      post: relatedPosts,
+    });
+  } catch (error) {
+    console.error("Error fetching related blogs:", error);
+    res.status(500).send({ message: "Error fetching related blogs" });
+  }
+});
+```
+
+## 5.10 Hashing Password
+
+Install bcrypt:
+
+https://www.npmjs.com/package/bcrypt
+
+```bash
+npm i bcrypt
+```
+
+Usage:
+
+```js
+UserSchema.pre("save", async function () {
+  const user = this;
+
+  if (!user.isModified("password")) return;
+
+  const hashedPassword = await bcrypt.hash(user.password, 10);
+  user.password = hashedPassword;
+});
+
+UserSchema.methods.comparePassword = function (givenPassword) {
+  return bcrypt.compare(givenPassword, this.password);
+};
+```
+
+## 5.11 Generate Token
+
+Install JWT:
+
+https://www.npmjs.com/package/bcrypt
+
+```bash
+npm i jsonwebtoken
+```
+
+Create a JWT_SECRET_KEY - we can use any strings or we can use node method to generate one:
+
+```bash
+node
+```
+
+```bash
+crypto.randomBytes(32).toString("hex")
+```
+
+save it in `.env`
+
+创建 generateToken 函数，它的任务是用用户 ID 找到数据库里的用户，然后生成包含该用户基本信息的 token。：
+
+```js
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET_KEY;
+
+const generateToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    return token;
+  } catch (error) {
+    console.error("Error generating token:", error);
+    throw new Error("Token generation failed");
+  }
+};
+
+module.exports = generateToken;
+```
+
+JWT 是一个用于生成用户身份认证用的 Token 的工具函数。一般在用户登录成功之后调用，用于后续接口鉴权。
+
+- `jsonwebtoken`: Node.js 的 JWT 库，用来生成和验证 token。
+
+- `JWT_SECRET`: 从环境变量中读取的密钥，用来签名 token。
   
+  - **签名密钥非常重要，一定要保密**。谁知道这个密钥，就能伪造 token。
+
+`jwt.sign(payload, secret, options)`：
+
+- **payload**：你想塞进 token 的内容（注意不能太大，也不能包含敏感信息）。
+  
+  - `userId`: 让后续接口知道是谁。
+  
+  - `role`: 让后端知道这个用户是不是管理员等。
+
+- **secret**：签名密钥。
+
+- **options**：
+  
+  - `expiresIn: "1h"`：表示这个 token 1 小时之后过期。
+
+这个 token 会被客户端存下来（如 localStorage 或 cookie），然后在访问受保护的接口时带上（通常是放在请求头 `Authorization: Bearer <token>`）。
+
+> “JWT 就是一张签了名的身份证明卡，用户只要拿着它，就能告诉后端：‘我是我’，而不用每次都重新证明一次。”
+
+生成 token 并存储到 cookie 中：
+
+```js
+const token = await generateToken(user._id);
+    // console.log(token);
+    res.cookie("token", token, {
+      httpOnly: true, // enable this only when you have https:// otherwise you have to make it false
+      secure: true,
+      sameSite: true,
+    });
+```
+
+## 5.12 退出登录
+
+```js
+
+```

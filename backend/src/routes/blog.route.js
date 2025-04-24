@@ -1,5 +1,6 @@
 const express = require("express");
 const Blog = require("../model/blog.model");
+const Comment = require("../model/comment.model");
 const router = express.Router();
 
 // create a blog post
@@ -21,7 +22,7 @@ router.post("/create-post", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const { search, category, location } = req.query;
-    console.log(search);
+    // console.log(search);
     let query = {};
     if (search) {
       query = {
@@ -42,7 +43,9 @@ router.get("/", async (req, res) => {
       query = { ...query, location: location };
     }
 
-    const posts = await Blog.find(query).sort({ createdAt: -1 });
+    const posts = await Blog.find(query)
+      .populate("author", "email")
+      .sort({ createdAt: -1 });
     res.status(200).send({
       message: "All blogs retrieved successfully",
       posts,
@@ -56,17 +59,22 @@ router.get("/", async (req, res) => {
 // get a single blog by id
 router.get("/:id", async (req, res) => {
   try {
-    console.log(req.params.id);
+    // console.log(req.params.id);
     const postId = req.params.id;
     const post = await Blog.findById(postId);
     if (!post) {
       return res.status(404).send({ message: "Blog post not found" });
     }
 
-    // Todo: with also fetch comment related to the post
+    // also fetch comment related to the post
+    const comment = await Comment.find({ postId: postId }).populate(
+      "user",
+      "username email"
+    );
     res.status(200).send({
       message: "Blog post retrieved successfully",
       post,
+      comment,
     });
   } catch (error) {
     console.error("Error fetching single post:", error);
@@ -106,6 +114,9 @@ router.delete("/delete-post/:id", async (req, res) => {
     if (!deletedPost) {
       return res.status(404).send({ message: "Blog post not found" });
     }
+
+    // delete related comments
+    await Comment.deleteMany({ postId: postId });
     res.status(200).send({
       message: "Blog post deleted successfully",
       post: deletedPost,
