@@ -1,10 +1,12 @@
 const express = require("express");
 const Blog = require("../model/blog.model");
 const Comment = require("../model/comment.model");
+const verifyToken = require("../middleware/verifyToken");
+const isAdmin = require("../middleware/isAdmin");
 const router = express.Router();
 
 // create a blog post
-router.post("/create-post", async (req, res) => {
+router.post("/create-post", verifyToken, isAdmin, async (req, res) => {
   try {
     // console.log("Blog data from api:", req.body);
     const newPost = new Blog({ ...req.body });
@@ -83,7 +85,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update a blog post
-router.patch("/update-post/:id", async (req, res) => {
+router.patch("/update-post/:id", verifyToken, async (req, res) => {
   try {
     // console.log(req.params.id);
     const postId = req.params.id;
@@ -107,7 +109,7 @@ router.patch("/update-post/:id", async (req, res) => {
 });
 
 // Delete a blog post
-router.delete("/delete-post/:id", async (req, res) => {
+router.delete("/delete-post/:id", verifyToken, async (req, res) => {
   try {
     const postId = req.params.id;
     const deletedPost = await Blog.findByIdAndDelete(postId);
