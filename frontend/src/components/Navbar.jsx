@@ -51,6 +51,24 @@ const Navbar = () => {
       </nav>
 
       {/* mobile menu items */}
+      {isMenuOpen && (
+        <ul className="sm:hidden fixed top-[108px] left-0 w-full h-auto pb-8 border-b bg-white shadow-sm z-50">
+          {navlinks.map((link, index) => (
+            <li className="mt-5 px-4">
+              <NavLink
+                className={({ isActive }) => (isActive ? "active" : "")}
+                to={`${link.path}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {link.name}
+              </NavLink>
+            </li>
+          ))}
+          <li className="mt-5 px-4">
+            <NavLink to="/login">Login</NavLink>
+          </li>
+        </ul>
+      )}
     </header>
   );
 };
