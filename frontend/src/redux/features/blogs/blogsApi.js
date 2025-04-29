@@ -13,3 +13,5 @@ export const blogApi = createApi({
     }),
   }),
 });
+
+export const { useFetchBlogsQuery } = blogApi;
