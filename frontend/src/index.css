@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #f7f8f9;
+  --color-bgPrimary: #222222;
+  --color-accent: #34495e;
+}
+
+.active {
+  color: #1e73be;
+}
